@@ -7,4 +7,6 @@ Simple Refinery Database extracted out of Wikipedia list of Refineries https://e
 
 ## To Run
 - Create a virtual environment in python and install the requirements.txt
-- Run generateCSV.py, to create a list of refineries as refinery_data.csv
+- Run generateCSV.py, to create a list of refineries as **refinery_data.csv**
+- **refinery_data.csv will have a list of refineries based on Region, Country, Name , Capacity, Unit and Activity**
+- **Activity is either closed or active**
