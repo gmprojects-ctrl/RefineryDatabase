@@ -1,0 +1,10 @@
+services:
+  db:
+    build: ./db
+    ports:
+      - "5432:5432"
+  init-db:
+    build: ./init
+    depends_on:
+      db:
+        condition: service_started

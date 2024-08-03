@@ -2,8 +2,9 @@
 import requests 
 import bs4
 import pandas as pd
+import psycopg2 as pg
 import re
-
+from sqlalchemy import create_engine
 
 # Constants
 REFINERY_LINK = "https://en.wikipedia.org/wiki/List_of_oil_refineries"
@@ -11,6 +12,11 @@ REFINERY_LINK = "https://en.wikipedia.org/wiki/List_of_oil_refineries"
 TONNES_INTO_BBLS = 7.36
 ROUND_DIGITS = 1
 
+
+
+REFINERY_DB_CONFIG = "postgresql://refinery_user:refinery@db:5432/refinery_db"
+    
+REFINERY_TABLE_NAME = "refinery"
 
 # Import logging
 import logging
@@ -24,6 +30,12 @@ LOGGER_STREAM_HANDLER.setFormatter(LOGGGER_FORMAT)
 LOGGER.addHandler(LOGGER_STREAM_HANDLER)
 
 
+
+# Data Manipulation functions
+############################################################################################################
+
+
+# Get refinery data
 def get_refinery_data(url=REFINERY_LINK):
     '''
     Title: get_refinery_data
@@ -117,6 +129,15 @@ def format_refinery_table(table:pd.DataFrame)->pd.DataFrame:
     # Get the refinery name
     table['Refinery'] = table['Refinery_'].str.split("(").str[0]
     
+    # If the refinery name is empty, get the name from the refinery_ column
+    table['Refinery'] = table['Refinery'].where(table['Refinery'] != "", table['Refinery_'].str.split("(").str[1])
+    
+    # Strip refinery name of non alphanumeric characters
+    table['Refinery'] = table['Refinery'].str.replace(r'\W', ' ')
+    
+    # Replace brackets with commas
+    table['Refinery'] = table['Refinery'].str.replace(')', '')
+    
     # Get the capacity
     table['Capacity'] = table['Raw'].apply(extract_bbld)
     
@@ -135,8 +156,12 @@ def format_refinery_table(table:pd.DataFrame)->pd.DataFrame:
    # Debugging
    # return table
     
+    # Convert columns to lowercase
+    table.columns = table.columns.str.lower()
+    
+    
     # Return the formatted table
-    return table[['Region', 'Country', 'Refinery', 'Capacity', 'Unit', 'Status']]
+    return table[['region', 'country', 'refinery', 'capacity', 'unit', 'status']]
 
 # Extract bbl/day from the raw data
 def extract_bbld(text:str)-> int:
@@ -149,34 +174,22 @@ def extract_bbld(text:str)-> int:
     Returns:
         bbl_day: The extracted bbl/day value
     '''
-    
+    patterns = [r'(\d{1,3}(?:,\d{3})*) bbl/d',
+                r'(\d{1,3}(?:,\d{3})*) bbl/day',
+                r'(\d{1,3}(?:,\d{3})*) bp/d',
+                r'(\d{1,3}(?:,\d{3})*) bpd',
+                r'(\d{1,3}(?:,\d{3})*) barrels/day',
+                r'(\d{1,3}(?:,\d{3})*) barrels per day']
    
-    pattern = r'(\d{1,3}(?:,\d{3})*) bbl/d'
-    pattern_2 = r'(\d{1,3}(?:,\d{3})*) bpd'
-
-    # Search for the pattern in the text
-    string_match = re.search(pattern, text)
+    for pattern in patterns:
+        string_match = re.search(pattern, text)
+        if string_match:
+            value = string_match.group(1)
+            value = value.replace(",", "")
+            return int(value) / 1000
+    return 0
     
-    # If the pattern is not found, search for the second pattern
-    if not string_match:
-        string_match = re.search(pattern_2, text)
-    
-    
-    # If the pattern is found, extract the value
-    if string_match:
-        # Extract the value
-        value = string_match.group(1)
-        
-        # Remove the commas
-        value = value.replace(",", "")
-        
-        # Convert the value to an integer
-        return int(value) / 1000
-        
-    else:
-        return 0
-    
-
+# Extract tonnes to bbl/day
 def extract_tonnes_to_bbld(text:str)->int:
     '''
     Title: extract_tonnes_to_bbld
@@ -193,11 +206,20 @@ def extract_tonnes_to_bbld(text:str)->int:
     text = text.replace(".", ",")
     
     # List the patterns
-    patterns_tonnes_per_year = [r'(\d{1,3}(?:,\d{3})*) ton/annum', r'(\d{1,3}(?:,\d{3})*) tonnes/annum', r'(\d{1,3}(?:,\d{3})*) tonnes/year']
+    patterns_tonnes_per_year = [r'(\d{1,3}(?:,\d{3})*) ton/annum', 
+                                r'(\d{1,3}(?:,\d{3})*) tonnes/annum', 
+                                r'(\d{1,3}(?:,\d{3})*) tonnes/year']
     
-    pattern_tonnes_per_day = [r'(\d{1,3}(?:,\d{3})*) ton/day', r'(\d{1,3}(?:,\d{3})*) tonnes/day', r'(\d{1,3}(?:,\d{3})*) tonnes/d']
+    pattern_tonnes_per_day = [r'(\d{1,3}(?:,\d{3})*) ton/day', 
+                              r'(\d{1,3}(?:,\d{3})*) tonnes/day', 
+                              r'(\d{1,3}(?:,\d{3})*) tonnes/d']
     
-    
+    pattern_million_tonnes_per_year = [r'(\d{1,3}(?:.\d{3})*) million tonne/year',
+                                       r'(\d{1,3}(?:.\d{3})*) million tonnes/year',
+                                        r'(\d{1,3}(?:.\d{3})*) million tonne/annum',
+                                        r'(\d{1,3}(?:.\d{3})*) million tonnes/annum',
+                                        r'(\d{1,3}(?:.\d{3})*) million tonne per year',
+                                        r'(\d{1,3}(?:.\d{3})*) million tonnes per year']
     
     
     # Iterate through the patterns
@@ -233,11 +255,26 @@ def extract_tonnes_to_bbld(text:str)->int:
             # Convert the value to an integer
             return round(int(value) * TONNES_INTO_BBLS / 1000, ROUND_DIGITS)
     
-    
+    # Iterate through the patterns
+    for pattern in pattern_million_tonnes_per_year:
+        # Search for the pattern in the text
+        string_match = re.search(pattern, text)
+        
+        # If the pattern is found, extract the value
+        if string_match:
+            # Extract the value
+            value = string_match.group(1)
+            
+            # Remove the commas
+            value = value.replace(",", "")
+            
+            # Convert the value to an integer
+            # Extra 1000 to convert to bbl/day due to matching i.e 3.65 -> 3650
+            return round(float(value) * TONNES_INTO_BBLS * 1000000 / (1000*1000*365), ROUND_DIGITS)
     
     return 0
    
-   
+# Check the status of the refinery 
 def checkstatus(text:str)->str:
     '''
     Title: checkstatus
@@ -263,7 +300,7 @@ def checkstatus(text:str)->str:
     else:
         return "active"
     
-    
+# Convert the text to ASCII 
 def convert_to_ascii(text:str)->str:
     '''
     Title: convert_to_ascii
@@ -275,3 +312,66 @@ def convert_to_ascii(text:str)->str:
     '''
     
     return re.sub(r'[^\x00-\x7F]+', ' ', text)
+
+
+############################################################################################################
+
+# Database functions
+############################################################################################################
+
+def get_db_engine(db_config:dict=REFINERY_DB_CONFIG)->pg.extensions.connection:
+    '''
+    Title: connect_to_db
+    Description: This function connects to the database.
+    Arguments:
+        db_config: A dictionary containing the database configuration
+    Returns:
+        connection: The connection object to the database
+    '''
+    
+    # Create an engine
+    return create_engine(db_config)
+ 
+def test_connection(engine):
+    '''
+    Title: test_connection
+    Description: This function tests the connection to the database.
+    Arguments:
+        engine: The engine object to connect to the database
+    Returns:
+        None
+    '''
+    try:
+        # Connect to the database
+        with engine.connect() as conn:
+            LOGGER.info("Connection to the database successful")
+    except Exception as e:
+        LOGGER.error("Error connecting to the database: %s", e)
+        raise e
+
+def insert_table_into_db(engine,refinery_table_name:str=REFINERY_TABLE_NAME):
+    '''
+    Title: insert_table_into_db
+    Description: This function inserts the table into the database.
+    Arguments:
+        engine: The engine object to connect to the database
+        refinery_table_name: The name of the refinery table
+    Returns:
+        None
+    '''
+    
+    
+    # Get the refinery data
+    refinery_data = get_refinery_data()
+    
+    
+    try:
+        # Insert the data into the database
+        refinery_data.to_sql(refinery_table_name, con=engine, if_exists='replace')
+    
+        LOGGER.info("Data inserted into the database")
+    except Exception as e:
+        LOGGER.error("Error inserting data into the database: %s", e)
+        raise e
+    
+    

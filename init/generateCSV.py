@@ -14,6 +14,8 @@ FILE_HANDLER.setFormatter(FORMATTER)
 LOGGER.addHandler(FILE_HANDLER)
 
 
+
+
 # Main function
 def main():
  
