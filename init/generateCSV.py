@@ -1,4 +1,4 @@
-import utils.refinery_db_io
+import utils.refinery_db_ext
 
 
 # Import logging
@@ -25,7 +25,7 @@ def main():
 
     try:
         
-        table = utils.refinery_db_io.get_refinery_data()
+        table = utils.refinery_db_ext.get_refinery_data()
 
         # Write the table to a csv file
         table.to_csv("refinery_data.csv", index=False)
