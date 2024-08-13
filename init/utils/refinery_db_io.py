@@ -1,6 +1,8 @@
 # Modules
 import psycopg2 as pg
 from sqlalchemy import create_engine, text
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import declarative_base
 import pandas as pd
 import logging
 
@@ -32,6 +34,53 @@ STREAM_HANDLER.setFormatter(FORMATTER)
 LOGGER.addHandler(STREAM_HANDLER)
 LOGGER.setLevel(logging.INFO)
 
+
+
+############################################################################################################
+# ORM functions
+############################################################################################################
+
+
+def create_refinery_db(engine, refinery_table_name:str=REFINERY_TABLE_NAME)->None:
+    '''
+    Title: create_refinery_db
+    Description: This function creates the refinery database.
+    Arguments:
+        engine: The engine object to connect to the database
+        refinery_table_name: The name of the refinery table
+    Returns:
+        None
+    '''
+
+    
+    # Base class
+    Base = declarative_base()
+
+
+    # Refinery model
+    class Refinery(Base):
+        __tablename__ = refinery_table_name
+        
+        id = Column(Integer, primary_key=True, autoincrement=True)
+        region = Column(String(255), nullable=False)
+        country = Column(String(255), nullable=False)
+        refinery = Column(String(255), nullable=False)
+        capacity = Column(String(255), nullable=False)
+        unit = Column(String(255), nullable=False)
+        status = Column(String(255), nullable=False)
+    
+    
+
+
+    # Create the table
+    try:
+        Base.metadata.create_all(engine)
+        LOGGER.info("Refinery table created")
+    except Exception as e:
+        LOGGER.error("Error creating refinery table: %s", e)
+        raise e
+    
+    
 
 
 

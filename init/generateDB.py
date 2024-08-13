@@ -1,3 +1,4 @@
+# Import the necessary libraries
 import utils.refinery_db_io 
 
 
@@ -15,14 +16,23 @@ LOGGER.addHandler(FILE_HANDLER)
 
 
 
-
 def main():
 
     # Test connection to the database
     engine = utils.refinery_db_io.get_db_engine()
+    
+    
+    # Try to create the refinery table
+    try:
+        utils.refinery_db_io.create_refinery_db(engine)
+    except Exception as e:
+        LOGGER.error("Error creating refinery table: %s", e)
+        raise e
+    
+    # Log that the refinery table was created
+    LOGGER.info("Refinery table created")
 
     # Test the connection
-
     try:
         utils.refinery_db_io.test_connection(engine)
         try:
@@ -34,6 +44,11 @@ def main():
     except Exception as e:
         LOGGER.error("Error testing connection to database: %s", e)
         raise e
+
+
+    # Dispose of the engine
+    engine.dispose()
+
     
 if __name__ == "__main__":
     main()
