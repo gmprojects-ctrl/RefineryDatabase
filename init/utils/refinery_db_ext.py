@@ -147,6 +147,10 @@ def format_refinery_table(table:pd.DataFrame)->pd.DataFrame:
     # Add unit
     table['Unit'] = "kbd"
     
+    
+    # Format regions
+    table['Region'] = table['Region'].apply(format_regions)
+    
    # Debugging
    # return table
     
@@ -268,6 +272,27 @@ def extract_tonnes_to_bbld(text:str)->int:
     
     return 0
    
+
+# Format regions
+def format_regions(text:str)->str:
+    '''
+    Title: format_regions
+    Description: This function formats the regions.
+    Arguments:
+        text: The text to format
+    Returns:
+        formatted_text: The formatted text
+    '''
+    
+    # Convert North America & Central America to North America
+    if text.lower().find("north") != -1:
+        return "North America"
+    
+    # Otherwise return the text
+    return text
+
+
+
 # Check the status of the refinery 
 def checkstatus(text:str)->str:
     '''
@@ -293,6 +318,9 @@ def checkstatus(text:str)->str:
         return "closed"
     else:
         return "active"
+    
+    
+
     
 # Convert the text to ASCII 
 def convert_to_ascii(text:str)->str:

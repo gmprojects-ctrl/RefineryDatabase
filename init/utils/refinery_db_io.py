@@ -41,37 +41,45 @@ LOGGER.setLevel(logging.INFO)
 ############################################################################################################
 
 
-def create_refinery_db(engine, refinery_table_name:str=REFINERY_TABLE_NAME)->None:
+# Base class
+Base = declarative_base()
+
+
+# Refinery model
+class Refinery(Base):
+    __tablename__ = REFINERY_TABLE_NAME
+    
+    index = Column(Integer, primary_key=True, autoincrement=True)
+    region = Column(String(255), nullable=False)
+    country = Column(String(255), nullable=False)
+    refinery = Column(String(255), nullable=False)
+    capacity = Column(String(255), nullable=False)
+    unit = Column(String(255), nullable=False)
+    status = Column(String(255), nullable=False)
+
+    def __repr__(self):
+        # Return the string representation of the object
+        return f"<Refinery(region='{self.region}', country='{self.country}', refinery='{self.refinery}', capacity='{self.capacity}', unit='{self.unit}', status='{self.status}')>"
+        
+    def to_dict(self):
+        return {
+            "region": self.region,
+            "country": self.country,
+            "refinery": self.refinery,
+            "capacity": self.capacity,
+            "unit": self.unit,
+            "status": self.status
+        }
+def create_refinery_db(engine)->None:
     '''
     Title: create_refinery_db
     Description: This function creates the refinery database.
     Arguments:
         engine: The engine object to connect to the database
-        refinery_table_name: The name of the refinery table
     Returns:
         None
     '''
-
     
-    # Base class
-    Base = declarative_base()
-
-
-    # Refinery model
-    class Refinery(Base):
-        __tablename__ = refinery_table_name
-        
-        id = Column(Integer, primary_key=True, autoincrement=True)
-        region = Column(String(255), nullable=False)
-        country = Column(String(255), nullable=False)
-        refinery = Column(String(255), nullable=False)
-        capacity = Column(String(255), nullable=False)
-        unit = Column(String(255), nullable=False)
-        status = Column(String(255), nullable=False)
-    
-    
-
-
     # Create the table
     try:
         Base.metadata.create_all(engine)
@@ -174,5 +182,4 @@ def insert_table_into_db(engine,refinery_table_name:str=REFINERY_TABLE_NAME):
     except Exception as e:
         LOGGER.error("Error inserting data into the database: %s", e)
         raise e
-    
     
