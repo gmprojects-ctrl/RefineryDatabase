@@ -156,6 +156,17 @@ def format_refinery_table(table:pd.DataFrame)->pd.DataFrame:
     
     # Convert columns to lowercase
     table.columns = table.columns.str.lower()
+   
+   
+    # Convert the columns to the correct data types
+    table['region'] = table['region'].astype(str)
+    table['country'] = table['country'].astype(str)
+    table['refinery'] = table['refinery'].astype(str)
+    table['capacity'] = table['capacity'].astype(float)
+    table['unit'] = table['unit'].astype(str)
+    table['status'] = table['status'].astype(str)
+    
+    
     
     
     # Return the formatted table

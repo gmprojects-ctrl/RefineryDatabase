@@ -44,6 +44,7 @@ def index()-> dict:
     '''
     # Create a session
     with Session() as session:
+        
         try:
             # Get the data
             data = session.query(Refinery).all()
@@ -110,6 +111,130 @@ def filter()-> dict:
             return jsonify({"error": str(e)}), 500
 
 
+
+# Add refinery 
+@app.route('/addrefinery', methods=['POST'])
+def post_refinery()-> dict:
+    '''
+    Title: post_refinery
+    Description: This route adds a new refinery to the refinery table
+    Args: None
+    Returns: A json object containing the data
+    '''
+    # Get the data
+    post_data = request.get_json()
+    
+    # Know the keys
+    region = post_data.get('region', 'Unknown')
+    country = post_data.get('country', 'Unknown')
+    refinery = post_data.get('refinery', 'Unknown')
+    capacity = post_data.get('capacity', '0')
+    unit = post_data.get('unit', 'kbd')
+    status = post_data.get('status', 'closed')
+    
+    # Create a session
+    with Session() as session:
+        
+        try:
+            # Get the maximum id
+            max_id = session.query(Refinery).order_by(Refinery.refinery_id.desc()).first().refinery_id
+            
+            # Ensure max id is a integer
+            max_id = int(max_id)
+            
+            # Increment the id
+            max_id += 1
+            
+            # Create a new refinery object
+            new_refinery = Refinery(refinery_id=max_id,region=region, country=country, refinery=refinery, capacity=capacity, unit=unit, status=status)
+            
+            # Add the refinery
+            session.add(new_refinery)
+            
+            # Commit the session
+            session.commit()
+            
+            return jsonify(new_refinery.to_dict()), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+
+# Delete refinery method
+@app.route('/deleterefinery/<to_delete_id>', methods=['DELETE'])
+def delete_refinery(to_delete_id)-> dict:
+    '''
+    Title: delete_refinery
+    Description: This route deletes a refinery from the refinery table
+    Args: to_delete_id
+    Returns: A json object containing the data
+    '''
+    
+    # Create a session
+    with Session() as session:
+        
+        try:
+            # Get the refinery to delete
+            refinery_to_delete = session.query(Refinery).filter(Refinery.refinery_id == to_delete_id).first()
+            
+            # Delete the refinery
+            session.delete(refinery_to_delete)
+            
+            # Commit the session
+            session.commit()
+            
+            return jsonify(refinery_to_delete.to_dict()), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+
+# Update refinery method
+@app.route('/updaterefinery/<to_update_id>', methods=['PUT'])
+def update_refinery(to_update_id)->None:
+    
+    # Get the put data
+    put_data = request.get_json()
+    
+    # Get the parameters
+    region = put_data.get("region",None)
+    country = put_data.get("country",None)
+    refinery = put_data.get("refinery",None)
+    capacity = put_data.get("capacity",None)
+    unit = put_data.get("unit",None)
+    status = put_data.get("status",None)
+    
+    # Create a session
+    with Session() as session:
+        try:
+            # Get the refinery to update
+            refinery_to_update = session.query(Refinery).filter(Refinery.refinery_id == to_update_id).first()
+            
+            # Update the refinery
+            if region:
+                refinery_to_update.region = region
+            
+            if country:
+                refinery_to_update.country = country
+            
+            if refinery:
+                refinery_to_update.refinery = refinery
+            
+            if capacity:
+                refinery_to_update.capacity = capacity
+            
+            if unit:
+                refinery_to_update.unit = unit
+            
+            if status:
+                refinery_to_update.status = status
+                
+            # Commit the session
+            session.commit()
+        
+            # Return the updated refinery
+            return jsonify(refinery_to_update.to_dict()), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+        
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -41,6 +41,13 @@ def main():
             LOGGER.error("Error inserting table into database: %s", e)
             raise e
 
+        # Add the primary key
+        try:
+            utils.refinery_db_io.add_primary_key(engine)
+        except Exception as e:
+            LOGGER.error("Error adding primary key: %s", e)
+            raise e
+        
     except Exception as e:
         LOGGER.error("Error testing connection to database: %s", e)
         raise e

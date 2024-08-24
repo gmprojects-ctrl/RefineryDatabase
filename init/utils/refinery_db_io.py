@@ -1,7 +1,7 @@
 # Modules
 import psycopg2 as pg
 from sqlalchemy import create_engine, text
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Float   
 from sqlalchemy.orm import declarative_base
 import pandas as pd
 import logging
@@ -18,6 +18,7 @@ REFINERY_DB_CONFIG_TEST = "postgresql://refinery_user:refinery@localhost:5432/re
     
 REFINERY_TABLE_NAME = "refinery"
 
+REFINERY_PRIMARY_KEY = "refinery_id"
 
 
 
@@ -39,7 +40,16 @@ LOGGER.setLevel(logging.INFO)
 ############################################################################################################
 # ORM functions
 ############################################################################################################
-
+# Create a db schema
+DB_SCHEMA = {
+    "refinery_id": Integer,
+    "region": String(255),
+    "country": String(255),
+    "refinery": String(255),
+    "capacity": Float,
+    "unit": String(255),
+    "status": String(255)
+}
 
 # Base class
 Base = declarative_base()
@@ -49,20 +59,21 @@ Base = declarative_base()
 class Refinery(Base):
     __tablename__ = REFINERY_TABLE_NAME
     
-    index = Column(Integer, primary_key=True, autoincrement=True)
-    region = Column(String(255), nullable=False)
-    country = Column(String(255), nullable=False)
-    refinery = Column(String(255), nullable=False)
-    capacity = Column(String(255), nullable=False)
-    unit = Column(String(255), nullable=False)
-    status = Column(String(255), nullable=False)
+    refinery_id = Column(REFINERY_PRIMARY_KEY,Integer, primary_key=True, autoincrement=True)
+    region = Column('region', String(255), nullable=False)
+    country = Column('country', String(255), nullable=False)
+    refinery = Column('refinery', String(255), nullable=False)
+    capacity = Column('capacity', Float, nullable=False)
+    unit = Column('unit', String(255), nullable=False)
+    status = Column('status',String(255), nullable=False)
 
     def __repr__(self):
         # Return the string representation of the object
-        return f"<Refinery(region='{self.region}', country='{self.country}', refinery='{self.refinery}', capacity='{self.capacity}', unit='{self.unit}', status='{self.status}')>"
+        return f"<Refinery(id='{self.refinery_id}', region='{self.region}', country='{self.country}', refinery='{self.refinery}', capacity='{self.capacity}', unit='{self.unit}', status='{self.status}')>"
         
     def to_dict(self):
         return {
+            'index': self.refinery_id,
             "region": self.region,
             "country": self.country,
             "refinery": self.refinery,
@@ -157,7 +168,7 @@ def execute_query(_engine, _query:str)->pd.DataFrame:
 
 
 
-def insert_table_into_db(engine,refinery_table_name:str=REFINERY_TABLE_NAME):
+def insert_table_into_db(engine,refinery_table_name:str=REFINERY_TABLE_NAME, refinery_schema:dict=DB_SCHEMA)->None:
     '''
     Title: insert_table_into_db
     Description: This function inserts the table into the database.
@@ -176,10 +187,35 @@ def insert_table_into_db(engine,refinery_table_name:str=REFINERY_TABLE_NAME):
     
     try:
         # Insert the data into the database
-        refinery_data.to_sql(refinery_table_name, con=engine, if_exists='replace')
+        refinery_data.to_sql(refinery_table_name, con=engine, if_exists='replace', index_label='refinery_id', dtype=refinery_schema)
     
         LOGGER.info("Data inserted into the database")
     except Exception as e:
         LOGGER.error("Error inserting data into the database: %s", e)
         raise e
+    
+
+def add_primary_key(engine, table:str =REFINERY_TABLE_NAME, primary_key:str = REFINERY_PRIMARY_KEY, ):
+    '''
+    Title: make_primary_key
+    Description: This function makes the given column the primary key of the table.
+    Arguments:
+        engine: The engine object to connect to the database
+        table: The name of the table
+        primary_key: The name of the column to make the primary key
+    Returns:
+        None
+    '''
+    
+    # Create the query
+    with engine.connect() as conn:
+        query = text(f"ALTER TABLE {table} ADD PRIMARY KEY({primary_key})")
+        
+        # Execute the query
+        try:
+            conn.execute(query)
+            LOGGER.info(f"Primary key {primary_key} set for table {table}")
+        except Exception as e:
+            LOGGER.error(f"Error setting primary key {primary_key} for table {table}: {e}")
+            raise e
     
