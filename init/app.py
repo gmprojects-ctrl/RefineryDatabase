@@ -57,6 +57,8 @@ def index()-> dict:
             return jsonify({"error": str(e)}), 500
 
 # Main filter route
+# Example 
+# http://route/filter?region=Europe&country=France&status=active
 @app.route('/filter', methods=['GET'])  
 def filter()-> dict:
     '''
@@ -112,7 +114,9 @@ def filter()-> dict:
 
 
 
-# Add refinery 
+# Add refinery
+# Example
+# POST http://route/addrefinery with the following json data 
 @app.route('/addrefinery', methods=['POST'])
 def post_refinery()-> dict:
     '''
@@ -160,6 +164,8 @@ def post_refinery()-> dict:
 
 
 # Delete refinery method
+# Example
+# DELETE http://route/deleterefinery/1
 @app.route('/deleterefinery/<to_delete_id>', methods=['DELETE'])
 def delete_refinery(to_delete_id)-> dict:
     '''
@@ -188,7 +194,9 @@ def delete_refinery(to_delete_id)-> dict:
 
 
 # Update refinery method
-@app.route('/updaterefinery/<to_update_id>', methods=['PUT'])
+# Example
+# PUT http://route/updaterefinery/1 with the following json data
+@app.route('/updaterefinery/<to_update_id>', methods=['PATCH'])
 def update_refinery(to_update_id)->None:
     
     # Get the put data
