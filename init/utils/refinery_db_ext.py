@@ -64,6 +64,9 @@ def get_refinery_data(url=REFINERY_LINK):
             if element.name == "h2":
                 if element.text.lower().find("africa") != -1:
                     extraction_flag = True
+           
+           # Goes through the HTML page until it finds the Africa Header then starts extracting
+           
             
             # If the extraction flag is set to True, extract the data
             if extraction_flag:
@@ -80,7 +83,7 @@ def get_refinery_data(url=REFINERY_LINK):
                 if element.name == "li":
                     data.append([region_level_header, country_level_header, element.text])
             
-            
+            # Stops at the se also page
             # If see also is found, break the loop
             if element.name == "h2" and element.text.lower().find("see also") != -1:
                 break
